@@ -1,0 +1,78 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: induztek-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_dev_password}
+      MYSQL_DATABASE: induztek_usuarios
+      MYSQL_USER: ${MYSQL_USER:-induztek}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-induztek_dev_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks: [induztek-network]
+
+  eureka-server:
+    build: ./eureka-server
+    container_name: induztek-eureka
+    ports: ["8761:8761"]
+    restart: unless-stopped
+    networks: [induztek-network]
+
+  usuarios:
+    build: ./usuarios
+    container_name: induztek-usuarios
+    restart: unless-stopped
+    depends_on:
+      mysql: { condition: service_healthy }
+      eureka-server: { condition: service_started }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:mysql://mysql:3306/induztek_usuarios?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${MYSQL_USER:-induztek}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-induztek_dev_password}
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:-INSTITUTO-LOCAL-DEV-SECRET-CHANGE-ME-32-BYTES-OR-MORE-2026}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
+      TOKEN_EXPIRATION_MINUTES: ${TOKEN_EXPIRATION_MINUTES:-30}
+      EXPOSE_DEV_TOKENS: ${EXPOSE_DEV_TOKENS:-true}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-localhost}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@induztek.cl}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+    ports: ["8081:8081"]
+    volumes:
+      - usuarios-uploads:/app/uploads
+    networks: [induztek-network]
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: induztek-gateway
+    restart: unless-stopped
+    depends_on:
+      eureka-server: { condition: service_started }
+      usuarios: { condition: service_started }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_URL: http://eureka-server:8761/eureka/
+    ports: ["8090:8090"]
+    networks: [induztek-network]
+
+volumes:
+  mysql-data:
+  usuarios-uploads:
+
+networks:
+  induztek-network:
+    driver: bridge

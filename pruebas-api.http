@@ -1,0 +1,92 @@
+@baseUrl = http://localhost:8090
+@tokenAdmin = PEGA_AQUI_EL_JWT_ADMIN
+@tokenUsuario = PEGA_AQUI_EL_JWT_DEL_USUARIO
+
+### 1. Login ADMIN
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "admin@induztek.cl",
+  "contrasena": "Abc1234@"
+}
+
+### 2. Crear una cuenta CLIENTE (requiere JWT ADMIN)
+POST {{baseUrl}}/api/usuarios
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{
+  "rut": "12345678-5",
+  "nombre": "Empresa de Prueba S.A.",
+  "apellido": null,
+  "correo": "correo-real@ejemplo.cl",
+  "telefono": "56912345678",
+  "rol": "CLIENTE",
+  "giro": "Servicios eléctricos",
+  "contactoNombre": "María Pérez",
+  "contactoCargo": "Administradora"
+}
+
+### 3. Activar cuenta con el tokenDev de la respuesta anterior
+POST {{baseUrl}}/api/auth/activar
+Content-Type: application/json
+
+{
+  "token": "PEGA_AQUI_EL_TOKEN_DE_INVITACION",
+  "nuevaContrasena": "Abc1234@"
+}
+
+### 4. Login de la cuenta nueva
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "correo-real@ejemplo.cl",
+  "contrasena": "Abc1234@"
+}
+
+### 5. Consultar mi perfil
+GET {{baseUrl}}/api/usuarios/me
+Authorization: Bearer {{tokenUsuario}}
+
+### 6. Actualizar mi perfil
+PUT {{baseUrl}}/api/usuarios/me
+Authorization: Bearer {{tokenUsuario}}
+Content-Type: application/json
+
+{
+  "nombre": "Empresa de Prueba S.A.",
+  "apellido": null,
+  "telefono": "56912345678",
+  "giro": "Servicios eléctricos",
+  "contactoNombre": "María Pérez",
+  "contactoCargo": "Administradora"
+}
+
+### 7. Cambiar contraseña (requiere la actual)
+PUT {{baseUrl}}/api/usuarios/me/contrasena
+Authorization: Bearer {{tokenUsuario}}
+Content-Type: application/json
+
+{
+  "actual": "Abc1234@",
+  "nueva": "NuevaClave9@"
+}
+
+### 8. Solicitar recuperación (correo debe existir)
+POST {{baseUrl}}/api/auth/recuperar
+Content-Type: application/json
+
+{
+  "correo": "correo-real@ejemplo.cl"
+}
+
+### 9. Restablecer contraseña con el token de recuperación
+POST {{baseUrl}}/api/auth/restablecer
+Content-Type: application/json
+
+{
+  "token": "PEGA_AQUI_EL_TOKEN_DE_RECUPERACION",
+  "nuevaContrasena": "OtraClave8@"
+}

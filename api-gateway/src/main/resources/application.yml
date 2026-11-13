@@ -1,0 +1,35 @@
+server:
+  port: 8090
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: usuarios
+              uri: lb://USUARIOS
+              predicates:
+                - Path=/api/**
+            - id: usuarios-media
+              uri: lb://USUARIOS
+              predicates:
+                - Path=/media/avatars/**
+            - id: usuarios-swagger
+              uri: lb://USUARIOS
+              predicates:
+                - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**,/webjars/**
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
