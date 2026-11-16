@@ -1,92 +1,186 @@
 @baseUrl = http://localhost:8090
-@tokenAdmin = PEGA_AQUI_EL_JWT_ADMIN
-@tokenUsuario = PEGA_AQUI_EL_JWT_DEL_USUARIO
+@correoAdmin = admin@induztek.cl
+@contrasenaAdmin = Abc1234@
+@tokenAdmin = PASTE_ADMIN_JWT_HERE
+@tokenTecnico = PASTE_TECNICO_JWT_HERE
+@idCliente = 2
+@idInstalacion = 1
+@idEquipo = 1
+@idTipoEquipo = 1
+@idTipoPrueba = 1
+@idProtocolo = 1
 
-### 1. Login ADMIN
+### 1. Login de administrador
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "correo": "admin@induztek.cl",
-  "contrasena": "Abc1234@"
+  "correo": "{{correoAdmin}}",
+  "contrasena": "{{contrasenaAdmin}}"
 }
 
-### 2. Crear una cuenta CLIENTE (requiere JWT ADMIN)
+### 2. Perfil propio
+GET {{baseUrl}}/api/usuarios/me
+Authorization: Bearer {{tokenAdmin}}
+
+### 3. Crear cuenta (solo ADMIN)
 POST {{baseUrl}}/api/usuarios
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
   "rut": "12345678-5",
-  "nombre": "Empresa de Prueba S.A.",
-  "apellido": null,
-  "correo": "correo-real@ejemplo.cl",
+  "nombre": "Usuario de Prueba",
+  "apellido": "Induztek",
+  "correo": "usuario.prueba@induztek.cl",
   "telefono": "56912345678",
-  "rol": "CLIENTE",
-  "giro": "Servicios eléctricos",
-  "contactoNombre": "María Pérez",
-  "contactoCargo": "Administradora"
+  "rol": "TECNICO_INGENIERO"
 }
 
-### 3. Activar cuenta con el tokenDev de la respuesta anterior
+### 4. Activar cuenta con token enviado por correo/log (sin JWT)
 POST {{baseUrl}}/api/auth/activar
 Content-Type: application/json
 
 {
-  "token": "PEGA_AQUI_EL_TOKEN_DE_INVITACION",
-  "nuevaContrasena": "Abc1234@"
+  "token": "PASTE_INVITATION_TOKEN",
+  "nuevaContrasena": "NuevaClaveSegura1!"
 }
 
-### 4. Login de la cuenta nueva
+### 5. Login del técnico activado; copia el token de la respuesta en @tokenTecnico
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "correo": "correo-real@ejemplo.cl",
-  "contrasena": "Abc1234@"
+  "correo": "tecnico@induztek.cl",
+  "contrasena": "LA_NUEVA_CLAVE_DEFINIDA_EN_ACTIVACION"
 }
 
-### 5. Consultar mi perfil
-GET {{baseUrl}}/api/usuarios/me
-Authorization: Bearer {{tokenUsuario}}
+### 6. Consultar regiones
+GET {{baseUrl}}/api/activos/regiones
+Authorization: Bearer {{tokenTecnico}}
 
-### 6. Actualizar mi perfil
-PUT {{baseUrl}}/api/usuarios/me
-Authorization: Bearer {{tokenUsuario}}
+### 7. Consultar comunas
+GET {{baseUrl}}/api/activos/comunas
+Authorization: Bearer {{tokenTecnico}}
+
+### 8. Consultar tipos de equipo
+GET {{baseUrl}}/api/activos/tipos-equipo
+Authorization: Bearer {{tokenTecnico}}
+
+### 9. Clientes activos con instalaciones y equipos (solo técnico)
+GET {{baseUrl}}/api/activos/clientes
+Authorization: Bearer {{tokenTecnico}}
+
+### 10. Crear instalación (solo técnico)
+POST {{baseUrl}}/api/activos/instalaciones
+Authorization: Bearer {{tokenTecnico}}
 Content-Type: application/json
 
 {
-  "nombre": "Empresa de Prueba S.A.",
-  "apellido": null,
-  "telefono": "56912345678",
-  "giro": "Servicios eléctricos",
-  "contactoNombre": "María Pérez",
-  "contactoCargo": "Administradora"
+  "idUsuarioCliente": {{idCliente}},
+  "nombre": "Instalación de prueba",
+  "ubicacion": "Sector norte",
+  "idComuna": 1,
+  "observacionesAcceso": "Coordinar ingreso con el cliente"
 }
 
-### 7. Cambiar contraseña (requiere la actual)
-PUT {{baseUrl}}/api/usuarios/me/contrasena
-Authorization: Bearer {{tokenUsuario}}
+### 11. Crear equipo (solo técnico)
+POST {{baseUrl}}/api/activos/equipos
+Authorization: Bearer {{tokenTecnico}}
 Content-Type: application/json
 
 {
-  "actual": "Abc1234@",
-  "nueva": "NuevaClave9@"
+  "idInstalacion": {{idInstalacion}},
+  "tag": "TR-TEST-01",
+  "idTipoEquipo": {{idTipoEquipo}},
+  "marca": "ABB",
+  "modelo": "TX-100",
+  "numeroSerie": "SERIE-TEST-01",
+  "potenciaKva": 1000,
+  "tensiones": 12,
+  "corriente": 0,
+  "maxContactosUohm": null
 }
 
-### 8. Solicitar recuperación (correo debe existir)
-POST {{baseUrl}}/api/auth/recuperar
+### 12. Pruebas compatibles con un tipo de equipo
+GET {{baseUrl}}/api/protocolos/catalogos/tipos-prueba?idTipoEquipo={{idTipoEquipo}}
+Authorization: Bearer {{tokenTecnico}}
+
+### 13. Parámetros de un tipo de prueba
+GET {{baseUrl}}/api/protocolos/catalogos/tipos-prueba/{{idTipoPrueba}}/parametros
+Authorization: Bearer {{tokenTecnico}}
+
+### 14. Crear borrador
+POST {{baseUrl}}/api/protocolos/borradores
+Authorization: Bearer {{tokenTecnico}}
 Content-Type: application/json
 
 {
-  "correo": "correo-real@ejemplo.cl"
+  "idEquipo": {{idEquipo}},
+  "fechaHoraPrueba": "2026-11-14T10:00:00",
+  "temperaturaC": 20,
+  "humedadPct": 45,
+  "observaciones": "Borrador de prueba",
+  "idsTiposPrueba": [{{idTipoPrueba}}]
 }
 
-### 9. Restablecer contraseña con el token de recuperación
-POST {{baseUrl}}/api/auth/restablecer
+### 15. Agregar tipos de prueba seleccionados a un borrador
+POST {{baseUrl}}/api/protocolos/{{idProtocolo}}/pruebas/seleccionadas
+Authorization: Bearer {{tokenTecnico}}
 Content-Type: application/json
 
 {
-  "token": "PEGA_AQUI_EL_TOKEN_DE_RECUPERACION",
-  "nuevaContrasena": "OtraClave8@"
+  "idsTiposPrueba": [{{idTipoPrueba}}]
+}
+
+### 16. Registrar una prueba evaluada (idParametro corresponde al catálogo)
+POST {{baseUrl}}/api/protocolos/{{idProtocolo}}/pruebas
+Authorization: Bearer {{tokenTecnico}}
+Content-Type: application/json
+
+{
+  "idTipoPrueba": {{idTipoPrueba}},
+  "elemento": "Devanado AT-BT",
+  "momento": "UNICA",
+  "realizada": true,
+  "idResultado": 1,
+  "mediciones": [
+    { "idParametro": 1, "valor": 5.0 }
+  ]
+}
+
+### 17. Registrar el protocolo en terreno
+PUT {{baseUrl}}/api/protocolos/{{idProtocolo}}/estado
+Authorization: Bearer {{tokenTecnico}}
+Content-Type: application/json
+
+{
+  "estado": "REGISTRADO_TERRENO"
+}
+
+### 18. Historial técnico
+GET {{baseUrl}}/api/protocolos/historial
+Authorization: Bearer {{tokenTecnico}}
+
+### 19. Detalle del protocolo
+GET {{baseUrl}}/api/protocolos/{{idProtocolo}}
+Authorization: Bearer {{tokenTecnico}}
+
+### 20. Formalizar protocolo
+PUT {{baseUrl}}/api/protocolos/{{idProtocolo}}/estado
+Authorization: Bearer {{tokenTecnico}}
+Content-Type: application/json
+
+{
+  "estado": "FORMALIZADO"
+}
+
+### 21. Anular protocolo (requiere motivo)
+PUT {{baseUrl}}/api/protocolos/{{idProtocolo}}/estado
+Authorization: Bearer {{tokenTecnico}}
+Content-Type: application/json
+
+{
+  "estado": "ANULADO",
+  "motivo": "Registro duplicado; se conservará el protocolo corregido."
 }

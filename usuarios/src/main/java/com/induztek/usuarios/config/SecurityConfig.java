@@ -22,10 +22,21 @@ public class SecurityConfig {
    .sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
    .authorizeHttpRequests(a->a
      .requestMatchers("/api/auth/login","/api/auth/activar","/api/auth/recuperar","/api/auth/restablecer",
-       "/swagger-ui.html","/swagger-ui/**","/v3/api-docs/**","/actuator/health","/media/avatars/**").permitAll()
+       "/swagger-ui.html","/swagger-ui/**","/v3/api-docs/**","/actuator/health","/media/avatars/**","/api/internal/usuarios","/api/internal/usuarios/**").permitAll()
      .requestMatchers(HttpMethod.POST,"/api/usuarios").hasRole("ADMIN")
      .requestMatchers("/api/usuarios","/api/usuarios/**").authenticated()
      .anyRequest().authenticated())
+   .exceptionHandling(e -> e
+       .authenticationEntryPoint((req, res, ex) -> {
+         res.setStatus(401);
+         res.setContentType("application/json");
+         res.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Autenticación requerida o token inválido.\"}");
+       })
+       .accessDeniedHandler((req, res, ex) -> {
+         res.setStatus(403);
+         res.setContentType("application/json");
+         res.getWriter().write("{\"status\":403,\"error\":\"Forbidden\",\"message\":\"No tienes permisos para realizar esta operación.\"}");
+       }))
    .addFilterBefore(jwt, UsernamePasswordAuthenticationFilter.class).build();
  }
  @Bean CorsConfigurationSource corsConfigurationSource(){

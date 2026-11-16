@@ -1,5 +1,6 @@
 server:
   port: 8090
+
 spring:
   application:
     name: api-gateway
@@ -8,6 +9,14 @@ spring:
       server:
         webflux:
           routes:
+            - id: activos
+              uri: lb://ACTIVOS
+              predicates:
+                - Path=/api/activos/**
+            - id: protocolos
+              uri: lb://PROTOCOLOS
+              predicates:
+                - Path=/api/protocolos/**
             - id: usuarios
               uri: lb://USUARIOS
               predicates:
@@ -16,18 +25,16 @@ spring:
               uri: lb://USUARIOS
               predicates:
                 - Path=/media/avatars/**
-            - id: usuarios-swagger
-              uri: lb://USUARIOS
-              predicates:
-                - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**,/webjars/**
+
 eureka:
   client:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
+
 management:
   endpoints:
     web:

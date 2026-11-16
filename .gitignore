@@ -1,5 +1,23 @@
+# Variables de entorno y credenciales
 .env
-uploads/
+.env.*
+!.env.example
+
+# Archivos generados por Maven
 **/target/
+
+# Archivos subidos por los usuarios
+**/uploads/
+
+# Configuracion de VS Code: compartir solo launch.json (no configuraciones personales)
+.vscode/*
+!.vscode/
+!.vscode/launch.json
+
+# Configuracion de otros IDE
 .idea/
 *.iml
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

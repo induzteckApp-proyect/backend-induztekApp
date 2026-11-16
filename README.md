@@ -1,340 +1,238 @@
-# Induztek — Backend de Usuarios, Eureka y API Gateway
+# Induztek — Backend de microservicios
 
-## Qué contiene
+Backend de Induztek App migrado a una arquitectura de microservicios con Spring Boot 4, Java 21, MySQL, Eureka, Spring Cloud Gateway, JWT y Docker Compose.
 
-- `usuarios/`: API REST de usuarios, perfiles, autenticación JWT, roles, activación por invitación, recuperación y cambio de contraseña, validaciones, BCrypt, manejo global de errores y Swagger.
-- `eureka-server/`: registro y descubrimiento de servicios, reutilizando la configuración del proyecto de ejemplo.
-- `api-gateway/`: punto de entrada HTTP y ruta hacia `USUARIOS`.
-- `docker-compose.yml`: MySQL 8.4 + Eureka + Usuarios + Gateway.
+> **Estado de verificación:** el código y la estructura fueron generados y revisados estáticamente. En este entorno no se pudo ejecutar Maven/Docker ni compilar los proyectos, por lo que no se afirma que los servicios compilen o que la cobertura alcance el 80 %. Se incluyen pruebas unitarias y configuración JaCoCo para que puedas ejecutar la verificación en tu equipo.
 
-Los roles del proyecto son exactamente `ADMIN`, `TECNICO_INGENIERO` y `CLIENTE`.
+## 1. Estructura
 
-## Dependencias del proyecto e instrucciones de ejecución:
-
-   - Project: Maven
-   - Language: Java
-   - Spring Boot: `4.0.9`
-   - Group: `com.induztek`
-   - Artifact: `usuarios`
-   - Name: `usuarios`
-   - Package name: `com.induztek.usuarios`
-   - Packaging: Jar
-   - Java: `21`
-3. Selecciona estas dependencias:
-   - Spring Web MVC
-   - Spring Data JPA
-   - Validation
-   - Spring Security
-   - Java Mail Sender
-   - MySQL Driver
-   - Eureka Discovery Client
-   - Spring Boot Actuator
-4. Dentro del POM: JJWT y Springdoc Swagger, que no son dependencias base del Initializr.
-5. Abre el proyecto `usuarios` como proyecto Maven y espera que descargue las dependencias.
-6. Crea la base `induztek_usuarios` en MySQL (o deja que Docker Compose la cree).
-7. Configura `application.properties` para Laragon o usa `application-docker.properties` dentro de Docker.
-8. Ejecuta `UsuariosApplication.java`.
-
-
-## Requisitos
-
-- JDK 21
-- Maven 3.9+
-- Docker Desktop con Docker Compose (opción recomendada)
-- Para ejecución local con Laragon: MySQL iniciado y base `induztek_usuarios` creada.
-
-El proyecto usa Spring Boot 4.0.9 y Spring Cloud 2025.1.4. La combinación pertenece a la misma línea de compatibilidad 4.0.x / 2025.1.x. Springdoc 3.0.3 se utiliza para Spring Boot 4.0.x.
-
-## Opción A — Levantar todo con Docker (recomendado)
-
-1. Abre una terminal en esta carpeta (`backend`).
-2. Copia `.env.example` a `.env`.
-3. Cambia `JWT_SECRET` por una cadena propia de al menos 32 bytes. No subas `.env` a Git.
-4. Para la primera prueba deja `MAIL_ENABLED=false` y `EXPOSE_DEV_TOKENS=true`. Así el microservicio entrega el token de invitación/recuperación en `tokenDesarrollo`, porque los correos ficticios no pueden recibir mensajes.
-5. Construye los JAR dentro de cada imagen (Dockerfile multi-stage) e inicia los servicios:
-
-   ```bash
-   docker compose up --build -d
-   ```
-
-6. Revisa el estado:
-
-   ```bash
-   docker compose ps
-   docker compose logs -f usuarios
-   ```
-
-7. Abre:
-   - Eureka: http://localhost:8761
-   - Swagger directo: http://localhost:8081/swagger-ui.html
-   - Swagger vía Gateway: http://localhost:8090/swagger-ui.html
-   - Gateway base: http://localhost:8090
-
-8. En Eureka debe aparecer `USUARIOS` y `API-GATEWAY` como `UP`.
-
-Para detener:
-```bash
-docker compose down
-```
-Para detener y borrar también los datos de la BD (¡esto elimina usuarios!):
-```bash
-docker compose down -v
+```text
+backend/
+├── eureka-server/       # Registro y descubrimiento de servicios (8761)
+├── api-gateway/         # Entrada HTTP para Android (8090)
+├── usuarios/            # Identidad, roles, permisos, sesión y cuentas (8081)
+├── activos/             # Regiones, comunas, instalaciones y equipos (8082)
+├── protocolos/          # Protocolos, pruebas, parámetros y mediciones (8083)
+├── mysql/init/          # Creación de bases de datos independientes
+├── docker-compose.yml
+├── .env.example
+└── pruebas-api.http
 ```
 
-## Opción B — Ejecutar con Laragon (MySQL local)
+## 2. Límites de los microservicios y propiedad de datos
 
-1. Inicia MySQL desde Laragon.
-2. En HeidiSQL/phpMyAdmin crea la base:
-
-   ```sql
-   CREATE DATABASE induztek_usuarios
-   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   ```
-
-3. En tres terminales distintas ejecuta:
-   - `eureka-server`: `mvn spring-boot:run`
-   - `usuarios`: `mvn spring-boot:run`
-   - `api-gateway`: `mvn spring-boot:run`
-
-4. En Laragon normalmente el usuario local es `root` sin contraseña. Si tu configuración es distinta, define antes de ejecutar:
-   - Windows PowerShell: `$env:DB_USERNAME="root"; $env:DB_PASSWORD=""`
-   - Linux/macOS: `export DB_USERNAME=root DB_PASSWORD=`
-
-5. `application.properties` usa `localhost:3306`, Eureka `localhost:8761`, Usuarios `8081` y Gateway `8090`.
-6. Hibernate usa `ddl-auto=update`: crea/actualiza tablas dentro de la base existente. No crea por sí solo el esquema MySQL, por eso se crea `induztek_usuarios` en el paso 2.
-
-## Cuentas de prueba
-
-El `SeedData` crea las cuentas solo si el correo no existe:
-
-| Correo | Rol | Contraseña de desarrollo |
+| Servicio | Base de datos | Tablas de su propiedad |
 |---|---|---|
-| tecnico@induztek.cl | TECNICO_INGENIERO | Abc1234@ |
-| cliente@ejemplo.cl | CLIENTE | Abc1234@ |
-| admin@induztek.cl | ADMIN | Abc1234@ |
+| Usuarios | `induztek_usuarios` | `usuarios`, `rol`, `permiso`, `rol_permiso`, `token_acceso` |
+| Activos | `induztek_activos` | `region`, `comuna`, `tipo_equipo`, `instalacion`, `equipo` |
+| Protocolos | `induztek_protocolos` | `estado_protocolo`, `tipo_prueba`, `tipo_prueba_equipo`, `parametro`, `protocolo`, `prueba`, `medicion` |
 
-Son datos ficticios de evaluación. La contraseña compartida es únicamente para desarrollo académico. No usarla en producción. Los RUT de prueba son ficticios y solo satisfacen el algoritmo de verificación.
+Cada servicio utiliza exclusivamente sus repositorios y su propia base de datos. No se comparten tablas ni se ejecutan consultas SQL sobre la base de otro microservicio. Además, cada servicio se conecta con un usuario MySQL diferente (`usuarios_app`, `activos_app`, `protocolos_app`) que solo tiene privilegios sobre su propia base.
 
-## Seguridad entre Gateway y microservicio
+Los identificadores externos (`id_usuario_cliente`, `id_usuario_registra`, `id_equipo` e `id_tipo_equipo`) son referencias por ID, no claves foráneas entre bases. Se validan mediante endpoints REST internos con `WebClient` y `X-Internal-Token`.
 
-El Gateway enruta y conserva el encabezado `Authorization`; el microservicio Usuarios valida la firma/expiración del JWT y aplica los permisos por rol. Por eso, incluso si se llama directamente al puerto `8081`, los endpoints privados siguen protegidos. No se confía en ocultar botones en Android como mecanismo de seguridad.
+`tipo_prueba_equipo.id_tipo_equipo` es un identificador externo: no tiene FK hacia Activos. `tipo_prueba_equipo.id_tipo_prueba` sí pertenece al dominio Protocolos y mantiene su FK local.
 
-Pruebas rápidas de autorización:
-- Sin JWT, `GET /api/usuarios/me` debe responder `401`.
-- Con JWT de CLIENTE, `POST /api/usuarios` debe responder `403`.
-- Con JWT de ADMIN, `POST /api/usuarios` debe responder `201`.
-- Con JWT de usuario, `PUT /api/usuarios/me` debe actualizar solo el perfil asociado al token.
+## 3. Roles y permisos
 
-## Endpoints principales
+Los códigos de rol expuestos por la API son:
 
-Base local: `http://localhost:8090` (Gateway) o `http://localhost:8081` (Usuarios directo).
+- `ADMIN`
+- `CLIENTE`
+- `TECNICO_INGENIERO`
 
-| Método | Ruta | Acceso | Función |
-|---|---|---|---|
-| POST | `/api/auth/login` | Público | Autenticación y JWT |
-| POST | `/api/auth/activar` | Público + token | Activar cuenta y definir contraseña |
-| POST | `/api/auth/recuperar` | Público | Solicitar token de recuperación |
-| POST | `/api/auth/restablecer` | Público + token | Definir nueva contraseña |
-| POST | `/api/usuarios` | ADMIN | Crear cuenta para cualquier rol |
-| GET | `/api/usuarios` | ADMIN | Listar usuarios |
-| GET | `/api/usuarios/me` | Autenticado | Consultar perfil propio |
-| PUT | `/api/usuarios/me` | Autenticado | Actualizar campos permitidos del perfil |
-| PUT | `/api/usuarios/me/contrasena` | Autenticado | Cambiar contraseña validando la actual |
-| POST | `/api/usuarios/me/avatar` | Autenticado | Subir avatar JPG/PNG/WEBP (máx. 3 MB) |
-| GET | `/api/usuarios/{id}` | ADMIN o dueño | Consultar usuario |
+El valor heredado `TECNICO` se transforma a `TECNICO_INGENIERO` durante la migración. Android utiliza el código oficial nuevo.
 
-### Contrato de login
+Permisos trasladados del proyecto Android original:
 
-```json
-{
-  "correo": "admin@induztek.cl",
-  "contrasena": "Abc1234@"
-}
+- `LEER`
+- `CREACION`
+- `EDICION`
+- `FORMALIZACION`
+- `ELIMINACION`
+- `AGREGAR_PERSONAL`
+
+El JWT contiene rol y permisos. Los servicios validan firma, expiración, rol y autoridades `PERM_*`. Las operaciones internas no reciben un JWT de usuario: requieren el token interno compartido.
+
+## 4. Migración de las cuentas SQLite
+
+La carga inicial conserva los datos de las **13 cuentas originales** del `InduztekDbHelper.kt`. Las cuentas que ya existían en MS Usuarios conservan su ID; las demás se crean con esos datos.
+
+Como los hashes originales de SQLite son SHA-256 y no son credenciales BCrypt compatibles, cada cuenta migrada recibe un hash BCrypt aleatorio inutilizable para iniciar sesión y queda con `activo=false` y `debeActivar=true`. Se crea un token de invitación para definir una contraseña nueva.
+
+La migración es idempotente: una cuenta que ya tiene su relación con `ROL` no se vuelve a desactivar ni se reinicia su contraseña en cada arranque. La cuenta administrativa de demostración existente se conserva y no forma parte de las 13 cuentas SQLite. En una base de datos nueva se crea `admin@induztek.cl` con contraseña inicial `Abc1234@`; cámbiala inmediatamente después del primer acceso.
+
+### Activación en desarrollo sin SMTP
+
+Con `MAIL_ENABLED=false` y `EXPOSE_DEV_TOKENS=true`, los tokens se registran en los logs de Usuarios. Puedes consultarlos con:
+
+```bash
+docker compose logs usuarios
 ```
 
-La respuesta contiene `token`, `tipo` y `usuario`. En las demás llamadas autenticadas agrega:
-`Authorization: Bearer <token>`.
+Busca `Token de activación de migración`. En la app Android utiliza la pantalla de activación para definir una contraseña nueva. En producción configura SMTP y usa `EXPOSE_DEV_TOKENS=false`.
 
-### Crear una cuenta como ADMIN
+Las instalaciones, equipos, tipos, parámetros, compatibilidades y protocolos de demostración se cargan en las bases de datos propietarias. Las referencias a usuarios/equipos se resuelven consultando a los servicios propietarios.
 
-Primero autentícate con `admin@induztek.cl`. Después envía el JWT en Authorization:
+## 5. Requisitos
 
-```json
-{
-  "rut": "12345678-5",
-  "nombre": "María",
-  "apellido": "Pérez",
-  "correo": "maria@ejemplo.cl",
-  "telefono": "56912345678",
-  "rol": "CLIENTE",
-  "giro": "Servicios eléctricos",
-  "contactoNombre": "María Pérez",
-  "contactoCargo": "Administradora"
-}
+- Java 21.
+- Maven 3.9 o superior.
+- Docker Desktop con Docker Compose v2.
+- Android Studio para compilar la aplicación Android.
+
+## 6. Configuración Docker
+
+Desde esta carpeta:
+
+```bash
+cp .env.example .env
 ```
 
-La cuenta queda pendiente de activación. Con `MAIL_ENABLED=false`, la respuesta trae `tokenDesarrollo`. En Swagger prueba `POST /api/auth/activar`:
+Edita `.env` y cambia al menos `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `JWT_SECRET` e `INTERNAL_SERVICE_TOKEN`. La misma `JWT_SECRET` debe utilizarse en Usuarios, Activos y Protocolos.
 
-```json
-{
-  "token": "TOKEN_DEVUELTO_POR_CREAR",
-  "nuevaContrasena": "Abc1234@"
-}
+Inicia la infraestructura:
+
+```bash
+docker compose up --build
 ```
 
-Con SMTP configurado, el código de un solo uso se envía al correo y `tokenDesarrollo` no se expone. El usuario lo escribe en la pantalla **Activar cuenta** o **Recuperar contraseña** de Android.
+Servicios y puertos:
 
-### Recuperar contraseña
-
-`POST /api/auth/recuperar`:
-```json
-{ "correo": "tecnico@induztek.cl" }
-```
-En modo desarrollo, copia `tokenDesarrollo` y llama `POST /api/auth/restablecer`:
-```json
-{ "token": "TOKEN_DEVUELTO", "nuevaContrasena": "NuevaClave9@" }
-```
-Si el correo no existe, el servicio responde `404`. Para producción se recomienda cambiar esto por respuesta genérica para no revelar qué correos tienen cuenta; el comportamiento actual sigue el requisito explícito del proyecto académico.
-
-### Actualizar perfil
-
-`PUT /api/usuarios/me`:
-```json
-{
-  "nombre": "Nombre actualizado",
-  "apellido": "Apellido",
-  "telefono": "56912345678",
-  "giro": "Rubro",
-  "contactoNombre": "Contacto",
-  "contactoCargo": "Cargo"
-}
-```
-No se permite cambiar correo, RUT ni rol desde el perfil. Eso evita que una cuenta se autoeleve a ADMIN o cambie su identificador.
-
-### Cambiar contraseña desde perfil
-
-`PUT /api/usuarios/me/contrasena`:
-```json
-{ "actual": "Abc1234@", "nueva": "NuevaClave9@" }
-```
-El backend comprueba la contraseña actual y valida la política nueva.
-
-## Política de contraseñas
-
-- Entre 8 y 72 caracteres.
-- Al menos una mayúscula Unicode.
-- Al menos una minúscula Unicode.
-- Al menos un dígito.
-- Al menos un símbolo permitido.
-- Sin espacios.
-- Se acepta `ñ` como minúscula y `Ñ` como mayúscula; no se confunde una letra con un símbolo.
-- BCrypt (factor 12); nunca se guarda la contraseña original.
-
-Los tokens de activación y recuperación se generan aleatoriamente, expiran, se almacenan como SHA-256 y solo pueden consumirse una vez.
-
-## Correo real
-
-En `.env`, configura `MAIL_ENABLED=true`, host/puerto/usuario/contraseña SMTP y Para Gmail, se requiere contraseña de aplicación y configuración SMTP permitida por la cuenta. No guardes contraseñas reales en el repositorio.
-
-En producción cambia `EXPOSE_DEV_TOKENS=false`, usa HTTPS, una clave JWT secreta fuerte, SMTP real y una política de CORS limitada a los dominios autorizados. No publiques la consola de desarrollo.
-
-## Notas de integración Android
-
-- Emulador Android: URL base del Gateway `http://10.0.2.2:8090/`.
-- Teléfono físico: `http://IP_LOCAL_DEL_PC:8090/` (PC y teléfono en la misma Wi-Fi).
-- No uses `localhost` desde el emulador/teléfono para apuntar al PC.
-- La app debe enviar el JWT como `Authorization: Bearer ...`.
-- El `DBHelper` se conserva para instalaciones, equipos, protocolos, mediciones e historiales. Usuarios/login/perfil dejan de consultarlo.
-
-## Archivo de pruebas HTTP\n\n`pruebas-api.http` incluye solicitudes listas para IntelliJ HTTP Client o la extensión REST Client de VS Code. Reemplaza los valores `PEGA_AQUI...` por los tokens que devuelve el login o la creación de cuenta.\n\n## Diagnóstico
-
-- `docker compose logs -f usuarios`
-- `docker compose logs -f api-gateway`
-- Si MySQL no conecta: revisa que la base y credenciales coincidan.
-- Si no aparece en Eureka: revisa `EUREKA_URL`, el contenedor Eureka y la red Docker.
-- Si el gateway responde 503: espera el registro de Usuarios en Eureka y vuelve a intentar.
-
-
-## Ejecución alternativa sin Docker
-
-El backend puede ejecutarse localmente mediante Spring Boot y Maven, sin utilizar contenedores Docker.
-
-Esta modalidad requiere instalar y configurar previamente:
-
-- Java JDK 21.
-- Maven o Maven Wrapper (`mvnw.cmd`).
-- MySQL 8.0 o compatible.
-- Un cliente para administrar MySQL, como Laragon o MySQL Workbench.
-
-### 1. Iniciar MySQL
-
-Iniciar el servicio MySQL local y comprobar que esté disponible en el puerto `3306`.
-
-Crear o verificar la existencia de la base de datos `induztek_usuarios`, utilizando la configuración de conexión definida para el microservicio Usuarios.
-
-Asegurarse de que las credenciales coincidan con las propiedades de conexión de la configuración local.
-
-### 2. Iniciar Eureka Server
-
-Abrir una terminal en la carpeta `eureka-server` y ejecutar:
-
-```cmd
-mvnw.cmd spring-boot:run
-```
-
-Esperar a que Spring Boot termine de inicializarse.
-
-Panel de Eureka:
-
-http://localhost:8761
-
-### 3. Iniciar el microservicio Usuarios
-
-Abrir una segunda terminal en la carpeta `usuarios` y ejecutar:
-
-```cmd
-mvnw.cmd spring-boot:run
-```
-
-El servicio debe conectarse a MySQL y registrarse en Eureka.
+| Componente | URL |
+|---|---|
+| Eureka | http://localhost:8761 |
+| API Gateway | http://localhost:8090 |
+| Usuarios | http://localhost:8081 |
+| Activos | http://localhost:8082 |
+| Protocolos | http://localhost:8083 |
+| MySQL | localhost:3306 |
 
 Swagger:
 
-http://localhost:8081/swagger-ui/index.html
+- Usuarios: http://localhost:8081/swagger-ui/index.html
+- Activos: http://localhost:8082/swagger-ui/index.html
+- Protocolos: http://localhost:8083/swagger-ui/index.html
 
-### 4. Iniciar API Gateway
+Las rutas de negocio de Android deben utilizar el Gateway (8090), no los puertos internos de cada servicio.
 
-Abrir una tercera terminal en la carpeta `api-gateway` y ejecutar:
+### Si ya existe un volumen MySQL antiguo
 
-```cmd
-mvnw.cmd spring-boot:run
+Los scripts de `mysql/init` se ejecutan únicamente cuando MySQL inicializa un directorio de datos vacío. Si conservas un volumen previo, crea las bases faltantes sin eliminar el volumen ni los datos:
+
+```sql
+CREATE DATABASE IF NOT EXISTS induztek_usuarios CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS induztek_activos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS induztek_protocolos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'usuarios_app'@'%' IDENTIFIED BY 'CambiaClaveUsuarios';
+CREATE USER IF NOT EXISTS 'activos_app'@'%' IDENTIFIED BY 'CambiaClaveActivos';
+CREATE USER IF NOT EXISTS 'protocolos_app'@'%' IDENTIFIED BY 'CambiaClaveProtocolos';
+ALTER USER 'usuarios_app'@'%' IDENTIFIED BY 'CambiaClaveUsuarios';
+ALTER USER 'activos_app'@'%' IDENTIFIED BY 'CambiaClaveActivos';
+ALTER USER 'protocolos_app'@'%' IDENTIFIED BY 'CambiaClaveProtocolos';
+GRANT ALL PRIVILEGES ON induztek_usuarios.* TO 'usuarios_app'@'%';
+GRANT ALL PRIVILEGES ON induztek_activos.* TO 'activos_app'@'%';
+GRANT ALL PRIVILEGES ON induztek_protocolos.* TO 'protocolos_app'@'%';
+FLUSH PRIVILEGES;
 ```
 
-El Gateway debe registrarse en Eureka y descubrir el microservicio Usuarios.
+No ejecutes `docker compose down -v` si necesitas conservar la base de datos anterior.
 
-Swagger:
+## 7. Ejecución local sin Docker
 
-http://localhost:8090/swagger-ui/index.html
+Primero inicia MySQL y crea las tres bases indicadas. En terminales separadas:
 
-### 5. Comprobar el funcionamiento
+```bash
+cd eureka-server && mvn spring-boot:run
+cd usuarios && mvn spring-boot:run
+cd activos && mvn spring-boot:run
+cd protocolos && mvn spring-boot:run
+cd api-gateway && mvn spring-boot:run
+```
 
-Una vez iniciados los tres servicios, comprobar:
+Define en el entorno de cada proceso:
 
-- Eureka disponible en el puerto `8761`.
-- Usuarios disponible en el puerto `8081`.
-- API Gateway disponible en el puerto `8090`.
-- Comunicación entre Gateway y Usuarios.
-- Conexión de Usuarios con MySQL.
+- `JWT_SECRET`: la misma clave de al menos 32 bytes en los tres microservicios.
+- `INTERNAL_SERVICE_TOKEN`: el mismo token en Usuarios, Activos y Protocolos.
+- Usuarios: `DB_URL`, `DB_USERNAME=usuarios_app`, `DB_PASSWORD=DB_USUARIOS_PASSWORD`.
+- Activos: `DB_URL`, `DB_USERNAME=activos_app`, `DB_PASSWORD=DB_ACTIVOS_PASSWORD`.
+- Protocolos: `DB_URL`, `DB_USERNAME=protocolos_app`, `DB_PASSWORD=DB_PROTOCOLS_PASSWORD`.
+- `USUARIOS_URL` en Activos y Protocolos.
+- `ACTIVOS_URL` en Protocolos.
 
-Las solicitudes externas deben realizarse a través de API Gateway, utilizando:
+## 8. Endpoints principales
 
-`http://localhost:8090`
+Todas las rutas de negocio se exponen mediante `http://localhost:8090`.
 
-### Consideraciones
+### Usuarios
 
-- Cada microservicio debe ejecutarse en una terminal independiente.
-- Eureka debe iniciarse antes de Usuarios y API Gateway.
-- MySQL debe estar disponible antes de iniciar Usuarios.
-- La configuración local debe utilizar direcciones `localhost`, mientras que Docker utiliza los nombres internos de sus servicios.
-- Las credenciales y secretos deben configurarse mediante variables de entorno o archivos locales no versionados.
-- Esta modalidad no requiere Docker Desktop ni imágenes Docker previamente construidas.
+| Método | Ruta | Acceso |
+|---|---|---|
+| POST | `/api/auth/login` | Público |
+| POST | `/api/auth/activar` | Público con token de invitación |
+| POST | `/api/auth/recuperar` | Público |
+| POST | `/api/auth/restablecer` | Público con token |
+| POST | `/api/usuarios` | ADMIN + `AGREGAR_PERSONAL` |
+| GET | `/api/usuarios/me` | Usuario autenticado |
+| PUT | `/api/usuarios/me` | Propietario del perfil |
+| PUT | `/api/usuarios/me/contrasena` | Propietario del perfil |
+| PATCH | `/api/usuarios/{id}/estado` | ADMIN |
+
+### Activos
+
+| Método | Ruta | Acceso |
+|---|---|---|
+| GET | `/api/activos/regiones` | `LEER` |
+| GET | `/api/activos/comunas` | `LEER` |
+| GET | `/api/activos/tipos-equipo` | `LEER` |
+| GET | `/api/activos/clientes` | TECNICO_INGENIERO + `LEER` |
+| POST | `/api/activos/instalaciones` | TECNICO_INGENIERO + `CREACION` |
+| GET | `/api/activos/clientes/{id}/instalaciones` | Propietario o personal autorizado |
+| POST | `/api/activos/equipos` | TECNICO_INGENIERO + `CREACION` |
+| GET | `/api/activos/instalaciones/{id}/equipos` | Propietario o personal autorizado |
+| GET | `/api/activos/equipos/{id}` | Propietario o personal autorizado |
+
+### Protocolos
+
+| Método | Ruta | Acceso |
+|---|---|---|
+| GET | `/api/protocolos/catalogos/tipos-prueba?idTipoEquipo={id}` | `LEER` |
+| GET | `/api/protocolos/catalogos/tipos-prueba/{id}/parametros` | `LEER` |
+| POST | `/api/protocolos/borradores` | TECNICO_INGENIERO + `CREACION` |
+| PUT | `/api/protocolos/{id}/borrador` | TECNICO_INGENIERO + `EDICION` |
+| POST | `/api/protocolos/{id}/pruebas/seleccionadas` | TECNICO_INGENIERO + `EDICION` |
+| POST/PUT | `/api/protocolos/{id}/pruebas` | TECNICO_INGENIERO + `EDICION` |
+| PUT | `/api/protocolos/{id}/estado` | Permiso según estado destino |
+| POST | `/api/protocolos/{id}/preparar-edicion` | Creador + `EDICION` |
+| POST | `/api/protocolos/{id}/reemplazar` | TECNICO_INGENIERO + `CREACION` + `ELIMINACION` |
+| GET | `/api/protocolos/historial` | TECNICO_INGENIERO + `LEER` |
+| GET | `/api/protocolos/equipos/{id}` | Propietario o TECNICO_INGENIERO |
+| GET | `/api/protocolos/clientes/me` | CLIENTE + `LEER` |
+
+## 9. Pruebas unitarias y cobertura
+
+Los tres microservicios incluyen actualmente **24 pruebas unitarias** con JUnit 5 y Mockito, además de configuración JaCoCo para generar los reportes por servicio.
+
+Desde cada carpeta (`usuarios`, `activos`, `protocolos`):
+
+```bash
+mvn clean test
+```
+
+Genera el reporte JaCoCo con:
+
+```bash
+mvn clean test
+```
+
+Abre `target/site/jacoco/index.html`.
+
+No se fija un umbral de `jacoco:check` para evitar que una cobertura no medida bloquee la compilación. Ejecuta los comandos y revisa el porcentaje real antes de entregar. Los tests incluidos son una base inicial, no una afirmación de que ya se alcanzó el 80 %.
+
+## 10. Notas de implementación
+
+- Las respuestas de seguridad usan HTTP 401/403; las validaciones y reglas de negocio utilizan los códigos HTTP correspondientes.
+- Los servicios no se llaman mediante SQL compartido. Activos consulta Usuarios; Protocolos consulta Activos y Usuarios.
+- Las rutas internas `/api/internal/**` no se deben exponer a Internet. El token `X-Internal-Token` debe ser secreto y distinto en producción.
+- El avatar conserva el mecanismo de almacenamiento de archivos del backend existente y expone su URL; no se comparte la tabla ni la base de datos con otro servicio.
+- Los archivos `application-*.properties` mantienen configuración separada para ejecución local y Docker.

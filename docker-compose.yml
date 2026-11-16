@@ -4,19 +4,21 @@ services:
     container_name: induztek-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_dev_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD en .env para Docker}
       MYSQL_DATABASE: induztek_usuarios
-      MYSQL_USER: ${MYSQL_USER:-induztek}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-induztek_dev_password}
+      DB_USUARIOS_PASSWORD: ${DB_USUARIOS_PASSWORD:?Define DB_USUARIOS_PASSWORD en .env para Docker}
+      DB_ACTIVOS_PASSWORD: ${DB_ACTIVOS_PASSWORD:?Define DB_ACTIVOS_PASSWORD en .env para Docker}
+      DB_PROTOCOLS_PASSWORD: ${DB_PROTOCOLS_PASSWORD:?Define DB_PROTOCOLS_PASSWORD en .env para Docker}
     ports:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
-      retries: 15
+      retries: 20
     networks: [induztek-network]
 
   eureka-server:
@@ -36,24 +38,65 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_URL: jdbc:mysql://mysql:3306/induztek_usuarios?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${MYSQL_USER:-induztek}
-      DB_PASSWORD: ${MYSQL_PASSWORD:-induztek_dev_password}
+      DB_USERNAME: usuarios_app
+      DB_PASSWORD: ${DB_USUARIOS_PASSWORD:?Define DB_USUARIOS_PASSWORD en .env para Docker}
       EUREKA_URL: http://eureka-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET:-INSTITUTO-LOCAL-DEV-SECRET-CHANGE-ME-32-BYTES-OR-MORE-2026}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
       TOKEN_EXPIRATION_MINUTES: ${TOKEN_EXPIRATION_MINUTES:-30}
-      EXPOSE_DEV_TOKENS: ${EXPOSE_DEV_TOKENS:-true}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Define INTERNAL_SERVICE_TOKEN en .env}
+      EXPOSE_DEV_TOKENS: ${EXPOSE_DEV_TOKENS:-false}
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
-      MAIL_HOST: ${MAIL_HOST:-localhost}
-      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_FROM: ${MAIL_FROM:-no-reply@induztek.cl}
-      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
-      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-true}
     ports: ["8081:8081"]
-    volumes:
-      - usuarios-uploads:/app/uploads
+    volumes: ["usuarios-uploads:/app/uploads"]
+    networks: [induztek-network]
+
+  activos:
+    build: ./activos
+    container_name: induztek-activos
+    restart: unless-stopped
+    depends_on:
+      mysql: { condition: service_healthy }
+      eureka-server: { condition: service_started }
+      usuarios: { condition: service_started }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:mysql://mysql:3306/induztek_activos?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: activos_app
+      DB_PASSWORD: ${DB_ACTIVOS_PASSWORD:?Define DB_ACTIVOS_PASSWORD en .env para Docker}
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Define INTERNAL_SERVICE_TOKEN en .env}
+      USUARIOS_URL: http://usuarios:8081
+    ports: ["8082:8082"]
+    networks: [induztek-network]
+
+  protocolos:
+    build: ./protocolos
+    container_name: induztek-protocolos
+    restart: unless-stopped
+    depends_on:
+      mysql: { condition: service_healthy }
+      eureka-server: { condition: service_started }
+      activos: { condition: service_started }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:mysql://mysql:3306/induztek_protocolos?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: protocolos_app
+      DB_PASSWORD: ${DB_PROTOCOLS_PASSWORD:?Define DB_PROTOCOLS_PASSWORD en .env para Docker}
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Define INTERNAL_SERVICE_TOKEN en .env}
+      ACTIVOS_URL: http://activos:8082
+      USUARIOS_URL: http://usuarios:8081
+    ports: ["8083:8083"]
     networks: [induztek-network]
 
   api-gateway:
@@ -63,6 +106,8 @@ services:
     depends_on:
       eureka-server: { condition: service_started }
       usuarios: { condition: service_started }
+      activos: { condition: service_started }
+      protocolos: { condition: service_started }
     environment:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_URL: http://eureka-server:8761/eureka/
