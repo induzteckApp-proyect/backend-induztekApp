@@ -1,26 +1,51 @@
+
 server:
   port: 8090
 
 spring:
   application:
     name: api-gateway
+
   cloud:
     gateway:
       server:
         webflux:
+
+          # Configuración global CORS
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              '[/**]':
+                allowedOrigins:
+                  - "http://localhost:8081"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                maxAge: 3600
+
+          # Rutas de los microservicios
           routes:
             - id: activos
               uri: lb://ACTIVOS
               predicates:
                 - Path=/api/activos/**
+
             - id: protocolos
               uri: lb://PROTOCOLOS
               predicates:
                 - Path=/api/protocolos/**
+
             - id: usuarios
               uri: lb://USUARIOS
               predicates:
                 - Path=/api/**
+
             - id: usuarios-media
               uri: lb://USUARIOS
               predicates:
@@ -32,6 +57,7 @@ eureka:
     fetch-registry: true
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
   instance:
     prefer-ip-address: true
 

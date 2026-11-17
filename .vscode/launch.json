@@ -30,6 +30,26 @@
             "projectName": "api-gateway",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-ActivosApplication<activos>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.induztek.activos.ActivosApplication",
+            "projectName": "activos",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-ProtocolosApplication<protocolos>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.induztek.protocolos.ProtocolosApplication",
+            "projectName": "protocolos",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
