@@ -103,4 +103,40 @@ class ActivosServiceTest {
         assertEquals("Transformador", response.tipoEquipo());
         assertEquals(new BigDecimal("1000"), response.potenciaKva());
     }
+
+    @Test
+    void listarClientesConActivosExcluyeCuentasInactivas() {
+        when(usuarios.listarClientes()).thenReturn(java.util.List.of(
+            new UsuarioClient.UsuarioResumen(10L, "76482915-8", "Cliente Activo", "activo@ejemplo.cl", "CLIENTE", true),
+            new UsuarioClient.UsuarioResumen(11L, "96731540-0", "Cliente Inactivo", "inactivo@ejemplo.cl", "CLIENTE", false)
+        ));
+        Region region = new Region();
+        region.setId(1L);
+        region.setNombre("Región Metropolitana");
+        Comuna comuna = new Comuna();
+        comuna.setId(2L);
+        comuna.setNombre("Lampa");
+        comuna.setRegion(region);
+        Instalacion instalacion = new Instalacion();
+        instalacion.setId(5L);
+        instalacion.setIdUsuarioCliente(10L);
+        instalacion.setNombre("Planta Lampa");
+        instalacion.setUbicacion("Sector industrial");
+        instalacion.setComuna(comuna);
+        when(instalaciones.findByIdUsuarioClienteOrderByNombreAsc(10L)).thenReturn(java.util.List.of(instalacion));
+        when(equipos.findByInstalacionIdOrderByTagAsc(5L)).thenReturn(java.util.List.of());
+
+        var clientes = service.listarClientesConActivos("");
+
+        assertEquals(1, clientes.size());
+        assertEquals("Cliente Activo", clientes.get(0).nombre());
+        assertEquals(1, clientes.get(0).instalaciones().size());
+        assertEquals("Lampa", clientes.get(0).instalaciones().get(0).instalacion().comuna());
+    }
+
+    @Test
+    void obtenerEquipoDevuelve404CuandoNoExiste() {
+        when(equipos.findById(99L)).thenReturn(Optional.empty());
+        assertThrows(ResponseStatusException.class, () -> service.obtenerEquipo(99L));
+    }
 }

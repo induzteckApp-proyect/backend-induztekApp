@@ -1,6 +1,7 @@
 package com.induztek.protocolos.exception;
 import jakarta.servlet.http.HttpServletRequest; import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException; import org.springframework.http.HttpStatus; import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException; import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler; import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException; import java.time.Instant; import java.util.LinkedHashMap; import java.util.Map;
@@ -11,6 +12,7 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.BAD_REQUEST,"La solicitud contiene campos inválidos.",req,fields);
     }
     @ExceptionHandler(ConstraintViolationException.class) ResponseEntity<?> constraint(ConstraintViolationException ex,HttpServletRequest req){return body(HttpStatus.BAD_REQUEST,ex.getMessage(),req,Map.of());}
+    @ExceptionHandler(HttpMessageNotReadableException.class) ResponseEntity<?> unreadable(HttpMessageNotReadableException ex,HttpServletRequest req){return body(HttpStatus.BAD_REQUEST,"El cuerpo JSON no tiene el formato esperado.",req,Map.of());}
     @ExceptionHandler(ResponseStatusException.class) ResponseEntity<?> status(ResponseStatusException ex,HttpServletRequest req){return body(HttpStatus.valueOf(ex.getStatusCode().value()),ex.getReason(),req,Map.of());}
     @ExceptionHandler(IllegalArgumentException.class) ResponseEntity<?> argument(IllegalArgumentException ex,HttpServletRequest req){return body(HttpStatus.BAD_REQUEST,ex.getMessage(),req,Map.of());}
     @ExceptionHandler(IllegalStateException.class) ResponseEntity<?> state(IllegalStateException ex,HttpServletRequest req){return body(HttpStatus.CONFLICT,ex.getMessage(),req,Map.of());}

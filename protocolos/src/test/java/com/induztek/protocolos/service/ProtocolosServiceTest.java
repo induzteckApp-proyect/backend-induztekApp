@@ -4,6 +4,7 @@ import com.induztek.protocolos.client.ActivosClient;
 import com.induztek.protocolos.client.UsuariosClient;
 import com.induztek.protocolos.dto.request.BorradorRequest;
 import com.induztek.protocolos.dto.request.CambioEstadoRequest;
+import com.induztek.protocolos.dto.request.GuardarPruebaRequest;
 import com.induztek.protocolos.model.*;
 import com.induztek.protocolos.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,5 +99,30 @@ class ProtocolosServiceTest {
         assertThrows(IllegalArgumentException.class,
             () -> service.cambiarEstado(1L, new CambioEstadoRequest("OBSERVADO", " "), 3L));
         verify(protocolos, never()).save(any());
+    }
+
+    @Test
+    void guardarPruebaDevuelve404SiNoExisteElProtocolo() {
+        when(protocolos.findById(7L)).thenReturn(Optional.empty());
+        GuardarPruebaRequest request = new GuardarPruebaRequest(
+                null, 1L, null, "UNICA", true, null, 1, List.of());
+
+        assertThrows(ResponseStatusException.class,
+                () -> service.guardarPrueba(7L, request, 3L));
+        verify(pruebas, never()).save(any());
+    }
+
+    @Test
+    void listarTiposPruebaSinFiltroDevuelveCatalogoOrdenado() {
+        TipoPrueba tipo = new TipoPrueba();
+        tipo.setId(4L);
+        tipo.setNombre("Resistencia de aislamiento");
+        when(tipos.findAllByOrderByNombreAsc()).thenReturn(List.of(tipo));
+
+        var resultado = service.listarTiposPrueba(null);
+
+        assertEquals(1, resultado.size());
+        assertEquals(4L, resultado.get(0).id());
+        assertEquals("Resistencia de aislamiento", resultado.get(0).nombre());
     }
 }

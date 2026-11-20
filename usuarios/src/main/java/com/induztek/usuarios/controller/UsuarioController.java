@@ -32,13 +32,13 @@ public class UsuarioController {
     public UsuarioResponse miPerfil(Principal principal) { return service.miPerfil(principal.getName()); }
 
     @PutMapping("/me")
-    @PreAuthorize("hasAuthority('PERM_EDICION')")
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENTE','TECNICO_INGENIERO')")
     public UsuarioResponse actualizar(@Valid @RequestBody ActualizarPerfilRequest request, Principal principal) {
         return service.actualizarPerfil(principal.getName(), request);
     }
 
     @PutMapping("/me/contrasena")
-    @PreAuthorize("hasAuthority('PERM_EDICION')")
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENTE','TECNICO_INGENIERO')")
     public ResponseEntity<MensajeResponse> cambiar(@Valid @RequestBody CambiarContrasenaRequest request, Principal principal) {
         service.cambiarContrasena(principal.getName(), request);
         return ResponseEntity.ok(new MensajeResponse("Contraseña cambiada correctamente."));

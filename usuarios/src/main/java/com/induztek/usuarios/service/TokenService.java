@@ -21,8 +21,8 @@ public class TokenService {
  }
  public Usuario consumir(String raw,TokenAcceso.TipoToken tipo){
    TokenAcceso t=repo.findByTokenHashAndTipoAndUsadoFalse(hash(raw),tipo)
-     .orElseThrow(()->new IllegalArgumentException("El enlace no es válido o ya fue utilizado."));
-   if(t.getExpiraEn().isBefore(LocalDateTime.now())) throw new IllegalArgumentException("El enlace ha expirado. Solicita uno nuevo.");
+     .orElseThrow(()->new IllegalArgumentException("El código no es válido o ya fue utilizado."));
+   if(t.getExpiraEn().isBefore(LocalDateTime.now())) throw new IllegalArgumentException("El código ha expirado. Solicita uno nuevo.");
    t.setUsado(true);repo.save(t);return t.getUsuario();
  }
  private String hash(String raw){

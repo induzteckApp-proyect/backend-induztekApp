@@ -7,7 +7,6 @@ import com.induztek.usuarios.repository.RolRepository;
 import com.induztek.usuarios.repository.UsuarioRepository;
 import com.induztek.usuarios.security.JwtService;
 import com.induztek.usuarios.security.PasswordPolicy;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,27 +15,26 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class UsuarioService {
+    private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
     private final UsuarioRepository usuarios;
     private final RolRepository roles;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
     private final TokenService tokens;
     private final CorreoService correo;
-    private final boolean exponerTokenDesarrollo;
-
     public UsuarioService(UsuarioRepository usuarios, RolRepository roles, PasswordEncoder encoder,
-                          JwtService jwt, TokenService tokens, CorreoService correo,
-                          @Value("${app.tokens.expose-in-development:false}") boolean exponerTokenDesarrollo) {
+                          JwtService jwt, TokenService tokens, CorreoService correo) {
         this.usuarios = usuarios;
         this.roles = roles;
         this.encoder = encoder;
         this.jwt = jwt;
         this.tokens = tokens;
         this.correo = correo;
-        this.exponerTokenDesarrollo = exponerTokenDesarrollo;
     }
 
     @Transactional
@@ -51,8 +49,6 @@ public class UsuarioService {
 
         Rol rol = roles.findByCodigo(request.rol())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "El rol indicado no existe."));
-        validarDatosCliente(rol, request.giro(), request.contactoNombre(), request.contactoCargo());
-
         Usuario usuario = new Usuario();
         usuario.setRut(rut);
         usuario.setNombre(request.nombre().trim());
@@ -63,19 +59,25 @@ public class UsuarioService {
         usuario.setActivo(false);
         usuario.setDebeActivar(true);
         usuario.setPasswordHash(encoder.encode(UUID.randomUUID().toString()));
-        usuario.setGiro(vacioANull(request.giro()));
-        usuario.setContactoNombre(vacioANull(request.contactoNombre()));
-        usuario.setContactoCargo(vacioANull(request.contactoCargo()));
+        boolean esCliente = usuario.getRol().getCodigo().equals("CLIENTE");
+        usuario.setGiro(esCliente ? vacioANull(request.giro()) : null);
+        usuario.setContactoNombre(esCliente ? vacioANull(request.contactoNombre()) : null);
+        usuario.setContactoCargo(esCliente ? vacioANull(request.contactoCargo()) : null);
         usuario = usuarios.save(usuario);
 
         String token = tokens.crear(usuario, TokenAcceso.TipoToken.INVITACION);
-        correo.enviar(correoNormalizado, "Activa tu cuenta Induztek",
-            "Tu cuenta fue creada por un administrador. Define tu contraseña en el siguiente enlace (válido por 30 minutos):\n"
-                + correo.enlace("activar", token));
-        String mensaje = correo.estaHabilitado()
-            ? "Cuenta creada. Se envió un código de activación al correo."
-            : "Cuenta creada. Activa la cuenta con el token de desarrollo.";
-        return new MensajeResponse(mensaje, (!correo.estaHabilitado() && exponerTokenDesarrollo) ? token : null);
+        if (correo.estaHabilitado()) {
+            try {
+                correo.enviar(correoNormalizado, "Activa tu cuenta Induztek",
+                    "Tu cuenta fue creada por un administrador. Ingresa este código en Induztek App para definir tu contraseña.\n\nCódigo de activación: "
+                        + token + "\n\nEl código vence en 30 minutos y solo puede utilizarse una vez.");
+                return new MensajeResponse("Cuenta creada y correo de activación enviado correctamente.");
+            } catch (RuntimeException ex) {
+                log.error("La cuenta {} fue creada, pero no se pudo enviar el correo de activación.", correoNormalizado, ex);
+                return new MensajeResponse("La cuenta fue creada, pero no se pudo enviar el correo de activación. No vuelvas a crearla; solicita al administrador que revise la configuración del correo.");
+            }
+        }
+        return new MensajeResponse("Cuenta creada. El envío de correo está deshabilitado; configura SMTP para completar la activación.");
     }
 
     @Transactional
@@ -107,12 +109,18 @@ public class UsuarioService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta todavía no está activa.");
         }
         String token = tokens.crear(usuario, TokenAcceso.TipoToken.RECUPERACION);
-        correo.enviar(usuario.getCorreo(), "Recuperación de contraseña Induztek",
-            "Usa este enlace para crear una nueva contraseña (válido por 30 minutos):\n" + correo.enlace("restablecer", token));
-        String mensaje = correo.estaHabilitado()
-            ? "Se envió el código de recuperación al correo registrado."
-            : "Correo validado. Usa el token de desarrollo para restablecer la contraseña.";
-        return new MensajeResponse(mensaje, (!correo.estaHabilitado() && exponerTokenDesarrollo) ? token : null);
+        if (correo.estaHabilitado()) {
+            try {
+                correo.enviar(usuario.getCorreo(), "Recuperación de contraseña Induztek",
+                    "Ingresa este código en Induztek App para restablecer tu contraseña.\n\nCódigo de recuperación: "
+                        + token + "\n\nEl código vence en 30 minutos y solo puede utilizarse una vez.");
+                return new MensajeResponse("Se envió el código de recuperación al correo registrado.");
+            } catch (RuntimeException ex) {
+                log.error("No se pudo enviar el código de recuperación a {}.", usuario.getCorreo(), ex);
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "No fue posible enviar el correo de recuperación. Intenta nuevamente más tarde.");
+            }
+        }
+        return new MensajeResponse("El envío de correo está deshabilitado. Contacta al administrador para habilitar la recuperación.");
     }
 
     @Transactional
@@ -142,13 +150,13 @@ public class UsuarioService {
     @Transactional
     public UsuarioResponse actualizarPerfil(String correoActual, ActualizarPerfilRequest request) {
         Usuario usuario = obtenerPorCorreo(correoActual);
-        validarDatosCliente(usuario.getRol(), request.giro(), request.contactoNombre(), request.contactoCargo());
         usuario.setNombre(request.nombre().trim());
         usuario.setApellido(vacioANull(request.apellido()));
         usuario.setTelefono(request.telefono());
-        usuario.setGiro(vacioANull(request.giro()));
-        usuario.setContactoNombre(vacioANull(request.contactoNombre()));
-        usuario.setContactoCargo(vacioANull(request.contactoCargo()));
+        boolean esCliente = usuario.getRol().getCodigo().equals("CLIENTE");
+        usuario.setGiro(esCliente ? vacioANull(request.giro()) : null);
+        usuario.setContactoNombre(esCliente ? vacioANull(request.contactoNombre()) : null);
+        usuario.setContactoCargo(esCliente ? vacioANull(request.contactoCargo()) : null);
         return respuesta(usuarios.save(usuario));
     }
 
@@ -209,14 +217,6 @@ public class UsuarioService {
             usuario.getAvatarUrl(), usuario.getCreadoEn());
     }
 
-    private void validarDatosCliente(Rol rol, String giro, String contactoNombre, String contactoCargo) {
-        boolean clienteConDatosComerciales = rol.getCodigo().equals("CLIENTE")
-            && (vacioANull(giro) != null || vacioANull(contactoNombre) != null || vacioANull(contactoCargo) != null);
-        if (clienteConDatosComerciales
-            && (vacioANull(giro) == null || vacioANull(contactoNombre) == null || vacioANull(contactoCargo) == null)) {
-            throw new IllegalArgumentException("Si registras datos comerciales de un CLIENTE, debes completar giro, nombre de contacto y cargo.");
-        }
-    }
 
     private static String normalizar(String valor) { return valor.trim().toLowerCase(Locale.ROOT); }
     private static String vacioANull(String valor) { return valor == null || valor.isBlank() ? null : valor.trim(); }

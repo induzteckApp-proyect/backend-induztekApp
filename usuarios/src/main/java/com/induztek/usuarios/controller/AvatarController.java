@@ -21,7 +21,7 @@ public class AvatarController {
         this.usuarios = usuarios;
     }
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('PERM_EDICION')")
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENTE','TECNICO_INGENIERO')")
     public UsuarioResponse subir(@RequestPart("archivo") MultipartFile archivo, Principal principal) throws java.io.IOException {
         return usuarios.actualizarAvatar(principal.getName(), storage.guardar(archivo));
     }

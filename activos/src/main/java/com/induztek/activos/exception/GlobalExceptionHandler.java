@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -25,6 +26,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     ResponseEntity<?> constraint(ConstraintViolationException ex, HttpServletRequest request) {
         return response(HttpStatus.BAD_REQUEST, ex.getMessage(), request, Map.of());
+    }
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<?> unreadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return response(HttpStatus.BAD_REQUEST, "El cuerpo JSON no tiene el formato esperado.", request, Map.of());
     }
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<?> status(ResponseStatusException ex, HttpServletRequest request) {

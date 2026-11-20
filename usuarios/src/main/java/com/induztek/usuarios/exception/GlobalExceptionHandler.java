@@ -47,6 +47,11 @@ public class GlobalExceptionHandler {
         return respuesta(HttpStatus.BAD_REQUEST, "El cuerpo JSON no tiene el formato esperado.", Map.of());
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> constraint(ConstraintViolationException ex) {
+        return respuesta(HttpStatus.BAD_REQUEST, "La solicitud contiene parámetros inválidos.", Map.of());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> argumento(IllegalArgumentException ex) {
         return respuesta(HttpStatus.BAD_REQUEST, ex.getMessage(), Map.of());
