@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
     info = @Info(title = "Induztek Protocolos API", version = "1.0", description = "API REST del dominio protocolos de Induztek."),
-    servers = @Server(url = "http://localhost:8090", description = "API Gateway")
+    servers = @Server(url = "http://localhost:8083", description = "Microservicio Protocolos (acceso local)")
 )
 @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT")
 public class OpenApiConfig { }

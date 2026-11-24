@@ -1,5 +1,10 @@
 package com.induztek.activos.controller;
 
+
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import com.induztek.activos.dto.request.EquipoRequest;
 import com.induztek.activos.dto.request.InstalacionRequest;
 import com.induztek.activos.dto.response.ActivoResponses.*;
@@ -17,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@Tag(name = "Activos", description = "Consulta y administración de clientes, instalaciones y equipos eléctricos.")
 @RequestMapping("/api/activos")
 @SecurityRequirement(name = "bearerAuth")
 public class ActivosController {
@@ -28,42 +34,108 @@ public class ActivosController {
         this.internalToken = internalToken;
     }
 
-    @GetMapping("/regiones")
+        @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/regiones")
     @PreAuthorize("hasAuthority('PERM_LEER')")
     @Operation(summary = "Listar regiones", description = "Devuelve el catálogo de regiones utilizado en las instalaciones.")
     public List<RegionResponse> regiones() { return service.listarRegiones(); }
 
-    @GetMapping("/comunas")
+        @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/comunas")
     @PreAuthorize("hasAuthority('PERM_LEER')")
     @Operation(summary = "Listar comunas", description = "Incluye la región a la que pertenece cada comuna.")
     public List<ComunaResponse> comunas() { return service.listarComunas(); }
 
-    @GetMapping("/tipos-equipo")
+        @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/tipos-equipo")
     @PreAuthorize("hasAuthority('PERM_LEER')")
     @Operation(summary = "Listar tipos de equipo", description = "Catálogo maestro propiedad exclusiva del microservicio Activos.")
     public List<TipoEquipoResponse> tiposEquipo() { return service.listarTiposEquipo(); }
 
-    @PostMapping("/instalaciones")
+        @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@PostMapping("/instalaciones")
     @PreAuthorize("hasRole('TECNICO_INGENIERO') and hasAuthority('PERM_CREACION')")
     @Operation(summary = "Crear instalación", description = "Registra una instalación para un cliente activo. Solo TECNICO_INGENIERO.")
     public ResponseEntity<InstalacionResponse> crearInstalacion(@Valid @RequestBody InstalacionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crearInstalacion(request));
     }
 
-    @GetMapping("/clientes")
+        @Operation(summary = "Listar clientes", description = "Busca clientes y resume sus activos asociados. El parámetro filtro permite limitar los resultados.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/clientes")
     @PreAuthorize("hasRole('TECNICO_INGENIERO') and hasAuthority('PERM_LEER')")
     public List<ClienteActivosResponse> clientes(@RequestParam(required = false) String filtro) {
         return service.listarClientesConActivos(filtro);
     }
 
-    @GetMapping("/clientes/{idCliente}/instalaciones")
+        @Operation(summary = "Listar instalaciones de un cliente", description = "Obtiene las instalaciones asociadas al cliente indicado. Un usuario cliente solo puede consultar sus propios recursos.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/clientes/{idCliente}/instalaciones")
     @PreAuthorize("hasAnyRole('TECNICO_INGENIERO','CLIENTE') and hasAuthority('PERM_LEER')")
     public List<InstalacionResponse> instalacionesCliente(@PathVariable Long idCliente, Authentication authentication) {
         validarPropiedadCliente(authentication, idCliente);
         return service.listarInstalacionesCliente(idCliente);
     }
 
-    @GetMapping("/instalaciones/{id}")
+        @Operation(summary = "Consultar instalación", description = "Obtiene el detalle de una instalación y valida el acceso del cliente propietario.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/instalaciones/{id}")
     @PreAuthorize("hasAnyRole('TECNICO_INGENIERO','CLIENTE') and hasAuthority('PERM_LEER')")
     public InstalacionResponse instalacion(@PathVariable Long id, Authentication authentication) {
         InstalacionResponse response = service.obtenerInstalacion(id);
@@ -71,13 +143,33 @@ public class ActivosController {
         return response;
     }
 
-    @PostMapping("/equipos")
+        @Operation(summary = "Crear equipo", description = "Registra un equipo eléctrico dentro de una instalación existente.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@PostMapping("/equipos")
     @PreAuthorize("hasRole('TECNICO_INGENIERO') and hasAuthority('PERM_CREACION')")
     public ResponseEntity<EquipoResponse> crearEquipo(@Valid @RequestBody EquipoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crearEquipo(request));
     }
 
-    @GetMapping("/instalaciones/{idInstalacion}/equipos")
+        @Operation(summary = "Listar equipos de una instalación", description = "Obtiene los equipos asociados a la instalación indicada.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/instalaciones/{idInstalacion}/equipos")
     @PreAuthorize("hasAnyRole('TECNICO_INGENIERO','CLIENTE') and hasAuthority('PERM_LEER')")
     public List<EquipoResponse> equipos(@PathVariable Long idInstalacion, Authentication authentication) {
         InstalacionResponse instalacion = service.obtenerInstalacion(idInstalacion);
@@ -85,7 +177,17 @@ public class ActivosController {
         return service.listarEquiposInstalacion(idInstalacion);
     }
 
-    @GetMapping("/equipos/{id}")
+        @Operation(summary = "Consultar equipo", description = "Obtiene el detalle de un equipo y valida el acceso a su instalación.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/equipos/{id}")
     @PreAuthorize("hasAnyRole('TECNICO_INGENIERO','CLIENTE') and hasAuthority('PERM_LEER')")
     public EquipoResponse equipo(@PathVariable Long id, Authentication authentication) {
         EquipoResponse response = service.obtenerEquipo(id);
@@ -94,19 +196,49 @@ public class ActivosController {
         return response;
     }
 
-    @GetMapping("/internal/tipos-equipo/{id}")
+        @Operation(summary = "Consultar tipo de equipo interno", description = "Endpoint de comunicación entre microservicios protegido mediante X-Internal-Token.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/internal/tipos-equipo/{id}")
     public TipoEquipoResponse tipoEquipoInterno(@PathVariable Long id, @RequestHeader("X-Internal-Token") String token) {
         validarTokenInterno(token);
         return service.obtenerTipoEquipoInterno(id);
     }
 
-    @GetMapping("/internal/tipos-equipo")
+        @Operation(summary = "Listar tipos de equipo internos", description = "Entrega el catálogo de tipos de equipo a otros microservicios mediante autenticación interna.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/internal/tipos-equipo")
     public List<TipoEquipoResponse> tiposEquipoInternos(@RequestHeader("X-Internal-Token") String token) {
         validarTokenInterno(token);
         return service.listarTiposEquipoInternos();
     }
 
-    @GetMapping("/internal/equipos")
+        @Operation(summary = "Buscar equipos internos", description = "Busca equipos por tag y, opcionalmente, por instalación para uso entre microservicios.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/internal/equipos")
     public List<EquipoInternoResponse> buscarEquiposInternos(@RequestParam String tag,
             @RequestParam(required = false) String instalacion,
             @RequestHeader("X-Internal-Token") String token) {
@@ -114,7 +246,17 @@ public class ActivosController {
         return service.buscarEquiposInternos(tag, instalacion);
     }
 
-    @GetMapping("/internal/equipos/{id}")
+        @Operation(summary = "Consultar equipo interno", description = "Entrega los datos internos de un equipo a otros microservicios mediante X-Internal-Token.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Operación completada correctamente."),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida o datos de entrada no válidos."),
+        @ApiResponse(responseCode = "401", description = "No autenticado o token inválido."),
+        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta operación."),
+        @ApiResponse(responseCode = "404", description = "No se encontró el recurso solicitado."),
+        @ApiResponse(responseCode = "409", description = "Conflicto con el estado actual del recurso."),
+        @ApiResponse(responseCode = "500", description = "Error interno al procesar la solicitud.")
+    })
+@GetMapping("/internal/equipos/{id}")
     public EquipoInternoResponse equipoInterno(@PathVariable Long id, @RequestHeader("X-Internal-Token") String token) {
         validarTokenInterno(token);
         return service.obtenerEquipoInterno(id);
