@@ -72,9 +72,9 @@ public class ActivosService {
         return usuarios.listarClientes().stream()
             .filter(UsuarioClient.UsuarioResumen::activo)
             .filter(cliente -> texto.isBlank()
-                || cliente.nombre().toLowerCase(java.util.Locale.ROOT).contains(texto)
-                || cliente.correo().toLowerCase(java.util.Locale.ROOT).contains(texto)
-                || cliente.rut().toLowerCase(java.util.Locale.ROOT).contains(texto))
+                || contiene(cliente.nombre(), texto)
+                || contiene(cliente.correo(), texto)
+                || contiene(cliente.rut(), texto))
             .map(cliente -> {
                 List<InstalacionConEquiposResponse> lista = instalaciones
                     .findByIdUsuarioClienteOrderByNombreAsc(cliente.id()).stream()
@@ -170,6 +170,10 @@ public class ActivosService {
             e.getTipoEquipo().getId(), e.getTipoEquipo().getNombre(), e.getTipoEquipo().getClasificacion(),
             e.getMarca(), e.getModelo(), e.getNumeroSerie(), e.getPotenciaKva(), e.getTensiones(),
             e.getCorriente(), e.getMaxContactosUohm());
+    }
+
+    private boolean contiene(String valor, String texto) {
+        return valor != null && valor.toLowerCase(java.util.Locale.ROOT).contains(texto);
     }
 
     private String limpiar(String valor) { return valor == null || valor.isBlank() ? null : valor.trim(); }

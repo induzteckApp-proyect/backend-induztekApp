@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Component
 public class ActivosClient {
@@ -36,8 +38,12 @@ public class ActivosClient {
         throw new IllegalStateException("No fue posible consultar los tipos de equipo de Activos después de varios intentos.", ultimoError);
     }
     public void obtenerTipoEquipo(Long id) {
-        client.get().uri("/api/activos/internal/tipos-equipo/{id}", id)
-            .header("X-Internal-Token", internalToken).retrieve().bodyToMono(Object.class).block();
+        try {
+            client.get().uri("/api/activos/internal/tipos-equipo/{id}", id)
+                .header("X-Internal-Token", internalToken).retrieve().bodyToMono(Object.class).block();
+        } catch (WebClientResponseException.NotFound ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tipo de equipo no encontrado.");
+        }
     }
     public java.util.List<EquipoResumen> buscarEquipos(String tag, String instalacion) {
         RuntimeException ultimoError = null;
@@ -67,7 +73,7 @@ public class ActivosClient {
             if (equipo == null) throw new IllegalArgumentException("El equipo no está disponible.");
             return equipo;
         } catch (WebClientResponseException.NotFound ex) {
-            throw new IllegalArgumentException("No existe el equipo indicado.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe el equipo indicado.");
         }
     }
     public record TipoEquipoResumen(Long id, String nombre, String clasificacion) { }

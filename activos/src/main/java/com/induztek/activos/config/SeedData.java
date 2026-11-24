@@ -27,7 +27,7 @@ public class SeedData {
             crearTipo(tipos, "Relé de protección", "Secundario");
             crearTipo(tipos, "Cable de poder", "Primario");
 
-            java.util.Map<String, Long> clientes = usuarios.listarClientes().stream()
+            java.util.Map<String, Long> clientes = usuarios.esperarClientesSemilla().stream()
                 .collect(java.util.stream.Collectors.toMap(UsuarioClient.UsuarioResumen::correo, UsuarioClient.UsuarioResumen::id));
             crearInstalacion(instalaciones, comunas, clientes.get("cliente@ejemplo.cl"), "Planta Lampa", "Sector industrial", "Lampa", "Inducción obligatoria de 30 min");
             crearInstalacion(instalaciones, comunas, clientes.get("jarancibia@svcentral.ejemplo"), "Planta Elevadora Sur", "Sector rural poniente", "San Bernardo", "Sala eléctrica subterránea, sin señal");

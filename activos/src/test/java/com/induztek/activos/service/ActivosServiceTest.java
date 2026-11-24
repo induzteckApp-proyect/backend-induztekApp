@@ -135,6 +135,15 @@ class ActivosServiceTest {
     }
 
     @Test
+    void filtrarClientesToleraCamposTextualesNulos() {
+        when(usuarios.listarClientes()).thenReturn(java.util.List.of(
+            new UsuarioClient.UsuarioResumen(10L, null, null, null, "CLIENTE", true)
+        ));
+
+        assertTrue(service.listarClientesConActivos("texto").isEmpty());
+    }
+
+    @Test
     void obtenerEquipoDevuelve404CuandoNoExiste() {
         when(equipos.findById(99L)).thenReturn(Optional.empty());
         assertThrows(ResponseStatusException.class, () -> service.obtenerEquipo(99L));

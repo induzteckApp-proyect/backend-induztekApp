@@ -1,7 +1,6 @@
 package com.induztek.activos.client;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -19,13 +18,15 @@ public class UsuarioClient {
     }
 
     public java.util.List<UsuarioResumen> listarClientes() {
+        java.util.List<UsuarioResumen> resultado = consultarClientes();
+        return resultado == null ? java.util.List.of() : resultado;
+    }
+
+    public java.util.List<UsuarioResumen> esperarClientesSemilla() {
         RuntimeException ultimoError = null;
         for (int intento = 1; intento <= 10; intento++) {
             try {
-                java.util.List<UsuarioResumen> resultado = webClient.get()
-                    .uri(uri -> uri.path("/api/internal/usuarios").queryParam("rol", "CLIENTE").build())
-                    .header("X-Internal-Token", internalToken).retrieve()
-                    .bodyToFlux(UsuarioResumen.class).collectList().block();
+                java.util.List<UsuarioResumen> resultado = consultarClientes();
                 if (resultado != null && resultado.size() >= 6) return resultado;
                 ultimoError = new IllegalStateException("Aún no se han cargado todas las cuentas de clientes semilla.");
             } catch (RuntimeException ex) {
@@ -37,7 +38,17 @@ public class UsuarioClient {
                 throw new IllegalStateException("Se interrumpió la carga de usuarios desde Usuarios.", interrupted);
             }
         }
-        throw new IllegalStateException("No fue posible consultar los clientes en Usuarios.", ultimoError);
+        throw new IllegalStateException("No fue posible cargar los clientes semilla desde Usuarios.", ultimoError);
+    }
+
+    private java.util.List<UsuarioResumen> consultarClientes() {
+        return webClient.get()
+            .uri(uri -> uri.path("/api/internal/usuarios").queryParam("rol", "CLIENTE").build())
+            .header("X-Internal-Token", internalToken)
+            .retrieve()
+            .bodyToFlux(UsuarioResumen.class)
+            .collectList()
+            .block();
     }
 
     public UsuarioResumen obtenerCliente(Long idUsuario) {

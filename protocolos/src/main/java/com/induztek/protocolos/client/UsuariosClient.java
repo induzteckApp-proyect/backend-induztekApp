@@ -3,6 +3,7 @@ package com.induztek.protocolos.client;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import java.util.List;
 
 @Component
@@ -16,9 +17,13 @@ public class UsuariosClient {
         this.internalToken = internalToken;
     }
     public UsuarioResumen obtenerUsuario(Long id) {
-        return client.get().uri("/api/internal/usuarios/{id}", id)
-            .header("X-Internal-Token", internalToken).retrieve()
-            .bodyToMono(UsuarioResumen.class).block();
+        try {
+            return client.get().uri("/api/internal/usuarios/{id}", id)
+                .header("X-Internal-Token", internalToken).retrieve()
+                .bodyToMono(UsuarioResumen.class).block();
+        } catch (WebClientResponseException.NotFound ex) {
+            return null;
+        }
     }
 
     public List<UsuarioResumen> listarUsuarios() {

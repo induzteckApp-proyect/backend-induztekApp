@@ -327,11 +327,11 @@ public class ProtocolosService {
     @Transactional(readOnly = true)
     public List<ProtocoloResponse> listarProtocolosCliente(Long idCliente) {
         List<ProtocoloResponse> resultados = new ArrayList<>();
-        for (Protocolo protocolo : protocolos.findAll()) {
+        for (Protocolo protocolo : protocolos.findAllByOrderByFechaHoraPruebaDesc()) {
+            String estado = protocolo.getEstado().getCodigo();
+            if (estado.equals("BORRADOR") || estado.equals("ANULADO")) continue;
             EquipoResumen equipo = activos.obtenerEquipo(protocolo.getIdEquipo());
-            if (equipo.idUsuarioCliente().equals(idCliente)
-                && !protocolo.getEstado().getCodigo().equals("BORRADOR")
-                && !protocolo.getEstado().getCodigo().equals("ANULADO")) {
+            if (equipo.idUsuarioCliente().equals(idCliente)) {
                 resultados.add(convertir(protocolo));
             }
         }
